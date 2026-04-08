@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id                String      @id @default(uuid())
+  name              String
+  domain            String?     @unique
+  createdAt         DateTime    @default(now())
+  leadAssigneeIndex Int         @default(0)
+  users             User[]
+  customers         Customer[]
+  deals             Deal[]
+  activities        Activity[]
+  customRoles       CustomRole[]
+  leads             Lead[]
+}
+
+model User {
+  id           String      @id @default(uuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  email        String      @unique
+  passwordHash String
+  role         Role        @default(EMPLOYEE)
+  createdAt    DateTime    @default(now())
+  deals        Deal[]
+  activities   Activity[]
+  customRoleId String?
+  customRole   CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  assignedLeads Lead[]     @relation("LeadAssignee")
+  createdLeads  Lead[]     @relation("LeadCreator")
+
+  @@index([tenantId])
+}
+
+model Customer {
+  id         String     @id @default(uuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  email      String?
+  phone      String?
+  status     String     @default("LEAD")
+  createdAt  DateTime   @default(now())
+  activities Activity[]
+
+  @@index([tenantId])
+}
+
+model Deal {
+  id         String     @id @default(uuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title      String
+  value      Float
+  stage      String     @default("LEAD")
+  assignedTo String?
+  user       User?      @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  createdAt  DateTime   @default(now())
+  activities Activity[]
+
+  @@index([tenantId])
+}
+
+model Activity {
+  id          String       @id @default(uuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type        ActivityType @default(TASK)
+  title       String
+  notes       String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  customerId  String?
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  dealId      String?
+  deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([dealId])
+  @@index([userId])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  TASK
+}
+
+model CustomRole {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  permissions Json
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Lead {
+  id             String       @id @default(uuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Contact info
+  firstName      String
+  lastName       String?
+  email          String?
+  phone          String?
+  company        String?
+  jobTitle       String?
+
+  // Lead details
+  source         LeadSource   @default(OTHER)
+  status         LeadStatus   @default(NEW)
+  priority       LeadPriority @default(MEDIUM)
+  estimatedValue Float?
+  notes          String?
+
+  // Assignment
+  assignedToId   String?
+  assignedTo     User?        @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById    String
+  createdBy      User         @relation("LeadCreator", fields: [createdById], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([tenantId])
+  @@index([assignedToId])
+  @@index([createdById])
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  COLD_CALL
+  EMAIL
+  SOCIAL_MEDIA
+  ADVERTISEMENT
+  EVENT
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CONVERTED
+  LOST
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
