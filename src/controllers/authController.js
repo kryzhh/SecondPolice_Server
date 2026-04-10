@@ -7,7 +7,7 @@ const register = async (req, res, next) => {
     // 1. Zod Validation
     const validationResult = registerSchema.safeParse(req.body);
     if (!validationResult.success) {
-      return next(new AppError(validationResult.error.errors[0].message, 400));
+      return next(new AppError(validationResult.error.issues[0].message, 400));
     }
 
     // 2. Register Tenant + Admin
@@ -40,7 +40,7 @@ const login = async (req, res, next) => {
     // 1. Zod Validation
     const validationResult = loginSchema.safeParse(req.body);
     if (!validationResult.success) {
-      return next(new AppError(validationResult.error.errors[0].message, 400));
+      return next(new AppError(validationResult.error.issues[0].message, 400));
     }
 
     const { email, password } = validationResult.data;
@@ -58,13 +58,43 @@ const login = async (req, res, next) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          tenantId: user.tenantId
+          tenantId: user.tenantId,
+          isEmailVerified: user.isEmailVerified
         }
       }
     });
   } catch (err) {
     next(err);
   }
+};
+
+const verifyOTP = async (req, res, next) => {
+  try {
+    const { otp } = req.body;
+    if (!otp) return next(new AppError('OTP is required', 400));
+    const result = await authService.verifyEmailOTP(req.user.id, otp);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) { next(err); }
+};
+
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return next(new AppError('Email is required', 400));
+    await authService.forgotPassword(email);
+    res.status(200).json({ status: 'success', message: 'If an account with that email exists, an OTP has been sent.' });
+  } catch (err) { next(err); }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) return next(new AppError('Email, OTP, and new password are required.', 400));
+    if (newPassword.length < 8) return next(new AppError('Password must be at least 8 characters.', 400));
+    
+    await authService.resetPassword(email, otp, newPassword);
+    res.status(200).json({ status: 'success', message: 'Password has been safely reset.' });
+  } catch (err) { next(err); }
 };
 
 const getMe = async (req, res, next) => {
@@ -81,4 +111,4 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe };
+module.exports = { register, login, getMe, verifyOTP, forgotPassword, resetPassword };

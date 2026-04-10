@@ -2,11 +2,17 @@ const express = require('express');
 const authController = require('../controllers/authController');
 
 const { authenticate } = require('../middlewares/authMiddleware');
+const { authLimiter } = require('../middlewares/rateLimiter');
 
 const router = express.Router();
 
-router.post('/register-tenant', authController.register);
-router.post('/login', authController.login);
+// Apply strict rate limiting to sensitive endpoints
+router.post('/register-tenant', authLimiter, authController.register);
+router.post('/login', authLimiter, authController.login);
+router.post('/verify-otp', authLimiter, authenticate, authController.verifyOTP);
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+router.post('/reset-password', authLimiter, authController.resetPassword);
+
 router.get('/me', authenticate, authController.getMe);
 
 module.exports = router;

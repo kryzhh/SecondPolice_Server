@@ -3,6 +3,12 @@ const bcrypt = require('bcrypt');
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/appError');
 
+const { sendEmail } = require('../utils/emailService');
+
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
 /**
  * Signs a JWT with user and tenant details
  */
@@ -26,11 +32,12 @@ const registerTenant = async (data) => {
     throw new AppError('An account with this email already exists.', 400);
   }
 
-  // 2. Hash password
+  // 2. Hash password & Generate OTP
   const hashedPassword = await bcrypt.hash(password, 12);
+  const otp = generateOTP();
+  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
   // 3. Database Transaction: Create Tenant + Admin User
-  // IMPORTANT: Multi-tenant safety starts here by creating both in one go.
   const result = await prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({
       data: { name: companyName }
@@ -42,12 +49,27 @@ const registerTenant = async (data) => {
         email,
         passwordHash: hashedPassword,
         role: 'ADMIN',
-        tenantId: tenant.id
+        tenantId: tenant.id,
+        otp,
+        otpExpiry,
+        isEmailVerified: false
       }
     });
 
     return { user, tenant };
   });
+
+  // 4. Send Email
+  try {
+    await sendEmail(
+      email,
+      name,
+      'Verify Your Workspace Account',
+      `<p>Hi ${name},</p><p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`
+    );
+  } catch (err) {
+    console.error('Failed to send OTP during registration', err);
+  }
 
   const token = signToken(result.user.id, result.tenant.id, result.user.role);
 
@@ -74,4 +96,84 @@ const login = async (email, password) => {
   return { token, user };
 };
 
-module.exports = { registerTenant, login };
+/**
+ * OTP Verification Logic
+ */
+const verifyEmailOTP = async (userId, otpCode) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError('User not found', 404);
+
+  if (user.isEmailVerified) return { alreadyVerified: true };
+
+  if (user.otp !== otpCode || !user.otpExpiry || user.otpExpiry < new Date()) {
+    throw new AppError('Invalid or expired verification code.', 400);
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      isEmailVerified: true,
+      otp: null,
+      otpExpiry: null
+    }
+  });
+
+  return { success: true };
+};
+
+/**
+ * Forgot Password (Sends OTP to email)
+ */
+const forgotPassword = async (email) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    // We don't throw an error to prevent email enumeration, just return silently
+    return;
+  }
+
+  const otp = generateOTP();
+  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { otp, otpExpiry }
+  });
+
+  try {
+    await sendEmail(
+      email,
+      user.name,
+      'Password Reset Request',
+      `<p>Hi ${user.name},</p><p>We received a password reset request. Your code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`
+    );
+  } catch (err) {
+    console.error('Failed to send reset OTP', err);
+  }
+};
+
+/**
+ * Reset Password (validates OTP and changes password)
+ */
+const resetPassword = async (email, otpCode, newPassword) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) throw new AppError('Invalid request.', 400);
+
+  if (user.otp !== otpCode || !user.otpExpiry || user.otpExpiry < new Date()) {
+    throw new AppError('Invalid or expired verification code.', 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: hashedPassword,
+      otp: null,
+      otpExpiry: null
+    }
+  });
+
+  return { success: true };
+};
+
+module.exports = { registerTenant, login, verifyEmailOTP, forgotPassword, resetPassword };

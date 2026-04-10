@@ -26,9 +26,12 @@ model User {
   tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name         String
   email        String      @unique
-  passwordHash String
-  role         Role        @default(EMPLOYEE)
-  createdAt    DateTime    @default(now())
+  passwordHash    String
+  isEmailVerified Boolean     @default(false)
+  otp             String?
+  otpExpiry       DateTime?
+  role            Role        @default(EMPLOYEE)
+  createdAt       DateTime    @default(now())
   deals        Deal[]
   activities   Activity[]
   customRoleId String?
