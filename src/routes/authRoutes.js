@@ -9,7 +9,9 @@ const router = express.Router();
 // Apply strict rate limiting to sensitive endpoints
 router.post('/register-tenant', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
-router.post('/verify-otp', authLimiter, authenticate, authController.verifyOTP);
+router.post('/verify-otp', authLimiter, (req, res, next) => {
+  authenticate(req, res, () => next());
+}, authController.verifyOTP);
 router.post('/forgot-password', authLimiter, authController.forgotPassword);
 router.post('/reset-password', authLimiter, authController.resetPassword);
 

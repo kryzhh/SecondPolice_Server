@@ -10,23 +10,13 @@ const register = async (req, res, next) => {
       return next(new AppError(validationResult.error.issues[0].message, 400));
     }
 
-    // 2. Register Tenant + Admin
-    const { token, user, tenant } = await authService.registerTenant(validationResult.data);
+    // 2. Save to PendingRegistration
+    const { pendingToken } = await authService.registerTenant(validationResult.data);
 
-    // 3. Send Response
+    // 3. Return pendingToken — no user/tenant exists in DB yet
     res.status(201).json({
       status: 'success',
-      token,
-      data: {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          tenantId: user.tenantId,
-          isEmailVerified: user.isEmailVerified
-        }
-      }
+      pendingToken,
     });
   } catch (err) {
     next(err);
@@ -68,9 +58,33 @@ const login = async (req, res, next) => {
 
 const verifyOTP = async (req, res, next) => {
   try {
-    const { otp } = req.body;
+    const { otp, pendingToken } = req.body;
     if (!otp) return next(new AppError('OTP is required', 400));
-    const result = await authService.verifyEmailOTP(req.user.id, otp);
+
+    const result = await authService.verifyEmailOTP({
+      userId: req.user?.id ?? null,
+      otpCode: otp,
+      pendingToken: pendingToken ?? null,
+    });
+
+    // If completing a pending registration, result includes a real JWT + user
+    if (result.token) {
+      return res.status(200).json({
+        status: 'success',
+        token: result.token,
+        data: {
+          user: {
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            role: result.user.role,
+            tenantId: result.user.tenantId,
+            isEmailVerified: true,
+          },
+        },
+      });
+    }
+
     res.status(200).json({ status: 'success', data: result });
   } catch (err) { next(err); }
 };
@@ -105,8 +119,14 @@ const resendOTP = async (req, res, next) => {
   try {
     const userId = req.user?.id ?? null;
     const email  = req.body?.email ?? null;
-    await authService.resendOTP({ userId, email });
-    res.status(200).json({ status: 'success', message: 'A new code has been sent to your email.' });
+    const pendingToken = req.body?.pendingToken ?? null;
+    const result = await authService.resendOTP({ userId, email, pendingToken });
+    res.status(200).json({
+      status: 'success',
+      message: 'A new code has been sent to your email.',
+      // Return refreshed pendingToken if it was a pending-registration resend
+      ...(result.pendingToken ? { pendingToken: result.pendingToken } : {}),
+    });
   } catch (err) { next(err); }
 };
 

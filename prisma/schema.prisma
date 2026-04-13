@@ -6,6 +6,21 @@ datasource db {
   provider = "postgresql"
 }
 
+// Temporarily holds registration data until email is verified.
+// Deleted once OTP is confirmed and the real Tenant+User are created.
+model PendingRegistration {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  companyName  String
+  passwordHash String
+  otp          String
+  otpExpiry    DateTime
+  createdAt    DateTime @default(now())
+
+  @@map("pending_registrations")
+}
+
 model Tenant {
   id                String      @id @default(uuid())
   name              String
