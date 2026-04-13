@@ -26,7 +26,8 @@ const addEmployee = async (tenantId, data) => {
       passwordHash: hashedPassword,
       role: role || 'EMPLOYEE',
       customRoleId: customRoleId || null,
-      tenantId: tenantId // SUPER CRITICAL: Hardcoded from Admin's JWT token
+      tenantId: tenantId, // SUPER CRITICAL: Hardcoded from Admin's JWT token
+      isEmailVerified: true, // Admin-created accounts skip email verification
     }
   });
 
