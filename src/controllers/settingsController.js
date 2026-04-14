@@ -33,3 +33,21 @@ exports.updateDisplayCurrency = async (req, res, next) => {
     res.status(200).json({ status: 'success', data: { settings: tenant } });
   } catch (err) { next(err); }
 };
+
+/** PATCH /api/settings/workspace */
+exports.updateWorkspace = async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    if (!name || name.trim() === '') {
+      return next(new AppError('Company name is required.', 400));
+    }
+
+    const tenant = await prisma.tenant.update({
+      where: { id: req.user.tenantId },
+      data: { name: name.trim() },
+      select: { id: true, name: true, displayCurrency: true },
+    });
+
+    res.status(200).json({ status: 'success', data: { settings: tenant } });
+  } catch (err) { next(err); }
+};
