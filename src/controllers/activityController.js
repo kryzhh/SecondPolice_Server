@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/appError');
+const { createNotification } = require('../services/notificationService');
 
 const VALID_TYPES = ['CALL', 'EMAIL', 'MEETING', 'TASK'];
 
@@ -9,6 +10,11 @@ const getActivities = async (req, res, next) => {
     const { type, completed, customerId, dealId } = req.query;
 
     const where = { tenantId: req.user.tenantId };
+    
+    // Strict Privacy Rules for Non-Admins
+    if (req.user.role !== 'ADMIN') {
+      where.userId = req.user.id;
+    }
 
     if (type && VALID_TYPES.includes(type)) where.type = type;
     if (customerId) where.customerId = customerId;
@@ -35,13 +41,15 @@ const getActivities = async (req, res, next) => {
 // POST /api/activities
 const createActivity = async (req, res, next) => {
   try {
-    const { type, title, notes, dueDate, customerId, dealId } = req.body;
+    const { type, title, notes, dueDate, customerId, dealId, assignedToId } = req.body;
     if (!title) return next(new AppError('Activity title is required.', 400));
+
+    const assigneeId = assignedToId || req.user.id;
 
     const activity = await prisma.activity.create({
       data: {
         tenantId:   req.user.tenantId,
-        userId:     req.user.id,
+        userId:     assigneeId,
         type:       type || 'TASK',
         title,
         notes:      notes    || null,
@@ -57,6 +65,18 @@ const createActivity = async (req, res, next) => {
     });
 
     res.status(201).json({ status: 'success', data: { activity } });
+
+    // Fire assignment notification if assigned to someone else
+    if (assigneeId !== req.user.id) {
+      createNotification({
+        tenantId: req.user.tenantId,
+        userId: assigneeId,
+        type: 'TASK_ASSIGNED',
+        title: 'New Activity Assigned To You',
+        body: `You have been assigned a new ${activity.type.toLowerCase()}: ${title}`,
+        linkUrl: `/activities`,
+      }).catch(console.error);
+    }
   } catch (err) {
     next(err);
   }
@@ -72,11 +92,12 @@ const updateActivity = async (req, res, next) => {
     });
     if (!existing) return next(new AppError('Activity not found.', 404));
 
-    const { type, title, notes, dueDate, customerId, dealId, completed } = req.body;
+    const { type, title, notes, dueDate, customerId, dealId, completed, assignedToId } = req.body;
 
     const activity = await prisma.activity.update({
       where: { id },
       data: {
+        ...(assignedToId && { userId: assignedToId }),
         ...(type       && { type }),
         ...(title      && { title }),
         ...(notes      !== undefined && { notes: notes || null }),
@@ -95,6 +116,18 @@ const updateActivity = async (req, res, next) => {
     });
 
     res.status(200).json({ status: 'success', data: { activity } });
+
+    // Fire assignment notification if assignment changed
+    if (assignedToId && assignedToId !== existing.userId) {
+      createNotification({
+        tenantId: req.user.tenantId,
+        userId: assignedToId,
+        type: 'TASK_ASSIGNED',
+        title: 'Activity Reassigned To You',
+        body: `An activity has been reassigned to you: ${title || existing.title}`,
+        linkUrl: `/activities`,
+      }).catch(console.error);
+    }
   } catch (err) {
     next(err);
   }
