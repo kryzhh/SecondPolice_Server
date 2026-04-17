@@ -194,24 +194,73 @@ exports.updateLead = async (req, res, next) => {
     // --- AUTO-CONVERSION WORKFLOW ---
     if (status === 'CONVERTED' && existing.status !== 'CONVERTED') {
       try {
-        // Generate Deal if there's projected value
+        // Generate Deal if there's projected value AND no deal already linked
         if (lead.estimatedValue && lead.estimatedValue > 0) {
-          await prisma.deal.create({
-            data: {
-              tenantId: req.user.tenantId,
-              title: `${lead.company || `${lead.firstName} ${lead.lastName || ''}`.trim()} - Sales Deal`,
-              value: lead.estimatedValue,
-              currency: lead.currency || 'USD',
-              stage: 'PROPOSAL',
-              assignedTo: lead.assignedToId || req.user.id
-            }
-          });
+          const existingDeal = await prisma.deal.findUnique({ where: { leadId: lead.id } });
+          if (!existingDeal) {
+            await prisma.deal.create({
+              data: {
+                tenantId: req.user.tenantId,
+                title: `${lead.company || `${lead.firstName} ${lead.lastName || ''}`.trim()} - Sales Deal`,
+                value: lead.estimatedValue,
+                currency: lead.currency || 'USD',
+                stage: 'PROPOSAL',
+                assignedTo: lead.assignedToId || req.user.id,
+                leadId: lead.id,   // ← link the deal back to this lead
+              }
+            });
+          }
         }
       } catch (autoErr) {
         console.error('Auto-conversion error:', autoErr);
       }
     }
-    // --------------------------------
+
+    // --- SYNC LINKED DEAL ---
+    // Keeps value/currency/title on the Deal record in sync with the Lead.
+    // Tries leadId first (fast), falls back to title-match for legacy deals
+    // that were created before leadId was added.
+    try {
+      const newTitle = `${lead.company || `${lead.firstName} ${lead.lastName || ''}`.trim()} - Sales Deal`;
+
+      // 1. Look up by explicit link
+      let linkedDeal = await prisma.deal.findUnique({ where: { leadId: lead.id } });
+
+      // 2. Legacy fallback: find by matching title pattern within the same tenant
+      if (!linkedDeal && existing.status === 'CONVERTED') {
+        const oldTitle = `${existing.company || `${existing.firstName} ${existing.lastName || ''}`.trim()} - Sales Deal`;
+        linkedDeal = await prisma.deal.findFirst({
+          where: {
+            tenantId: req.user.tenantId,
+            title: oldTitle,
+            leadId: null,   // only unlinked deals — avoid matching manually-created ones
+          },
+        });
+        // Stamp the leadId so next update is fast
+        if (linkedDeal) {
+          await prisma.deal.update({
+            where: { id: linkedDeal.id },
+            data: { leadId: lead.id },
+          });
+        }
+      }
+
+      if (linkedDeal) {
+        await prisma.deal.update({
+          where: { id: linkedDeal.id },
+          data: {
+            title: newTitle,
+            ...(lead.estimatedValue !== null && lead.estimatedValue !== undefined
+              ? { value: lead.estimatedValue } : {}),
+            ...(lead.currency ? { currency: lead.currency } : {}),
+          },
+        });
+      }
+    } catch (syncErr) {
+      console.error('Deal sync error:', syncErr);
+    }
+    // ------------------------
+
 
     res.status(200).json({ status: 'success', data: { lead } });
 

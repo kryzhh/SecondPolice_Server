@@ -85,10 +85,13 @@ model Deal {
   stage      String     @default("LEAD")
   assignedTo String?
   user       User?      @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  leadId     String?    @unique   // nullable; set when auto-created from a Lead conversion
+  lead       Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
   createdAt  DateTime   @default(now())
   activities Activity[]
 
   @@index([tenantId])
+  @@index([leadId])
 }
 
 model Notification {
@@ -186,6 +189,7 @@ model Lead {
 
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  deal           Deal?                        // auto-created deal when converted
 
   @@index([tenantId])
   @@index([assignedToId])

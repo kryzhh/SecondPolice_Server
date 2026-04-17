@@ -7,8 +7,7 @@ const VALID_TYPES = ['CALL', 'EMAIL', 'MEETING', 'TASK'];
 // GET /api/activities
 const getActivities = async (req, res, next) => {
   try {
-    const { type, completed, customerId, dealId } = req.query;
-
+    const { type, completed, customerId, dealId, todaySync, endDate } = req.query;
     const where = { tenantId: req.user.tenantId };
     
     // Strict Privacy Rules for Non-Admins
@@ -19,8 +18,24 @@ const getActivities = async (req, res, next) => {
     if (type && VALID_TYPES.includes(type)) where.type = type;
     if (customerId) where.customerId = customerId;
     if (dealId) where.dealId = dealId;
-    if (completed === 'true')  where.completedAt = { not: null };
-    if (completed === 'false') where.completedAt = null;
+
+    // Today's Sync Logic (For Dashboard)
+    if (todaySync === 'true') {
+      const now = new Date();
+      const startOfToday = new Date(new Date(now).setHours(0,0,0,0));
+      const endOfToday = new Date(new Date(now).setHours(23,59,59,999));
+      
+      where.OR = [
+        // 1. Incomplete tasks due today or in the past
+        { dueDate: { lte: endOfToday }, completedAt: null },
+        // 2. Tasks completed today (regardless of due date)
+        { completedAt: { gte: startOfToday, lte: endOfToday } }
+      ];
+    } else {
+      if (completed === 'true')  where.completedAt = { not: null };
+      if (completed === 'false') where.completedAt = null;
+      if (endDate) where.dueDate = { lte: new Date(endDate) };
+    }
 
     const activities = await prisma.activity.findMany({
       where,
