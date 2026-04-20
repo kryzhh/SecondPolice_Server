@@ -35,15 +35,23 @@ const authenticateWithQuery = async (req, res, next) => {
   }
 };
 
+// Middleware: ADMIN OR any role with "Invoices: Read & Write"
+const requireInvoiceWrite = (req, res, next) => {
+  if (req.user.role === 'ADMIN') return next();
+  const perms = req.user.permissions || {};
+  if (perms['Invoices'] === 'Read & Write') return next();
+  return res.status(403).json({ status: 'fail', message: 'You do not have permission to perform this action.' });
+};
+
 // Routes
 router.get('/',          authenticate, invoiceController.getInvoices);
 router.get('/:id',       authenticate, invoiceController.getInvoice);
 router.get('/:id/pdf',   authenticateWithQuery, invoiceController.getInvoicePDF);
 
-// Admin-only mutations
-router.post('/:id/send', authenticate, restrictTo('ADMIN'), invoiceController.sendInvoice);
-router.patch('/:id',     authenticate, restrictTo('ADMIN'), invoiceController.updateInvoice);
-router.delete('/:id',    authenticate, restrictTo('ADMIN'), invoiceController.deleteInvoice);
+// Write operations — Admin OR Invoices Read & Write
+router.post('/:id/send', authenticate, requireInvoiceWrite, invoiceController.sendInvoice);
+router.patch('/:id',     authenticate, requireInvoiceWrite, invoiceController.updateInvoice);
+router.delete('/:id',    authenticate, requireInvoiceWrite, invoiceController.deleteInvoice);
 
 module.exports = router;
 

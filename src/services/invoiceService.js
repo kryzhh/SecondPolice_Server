@@ -102,7 +102,7 @@ async function generateAndSendInvoice(invoiceId, tenantName) {
         <p style="margin:0;color:#64748B;font-size:12px;">The full invoice PDF is attached to this email. Please reach out if you have any questions.</p>
       </div>
       <div style="padding:16px 32px;background:#F1F5F9;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 8px 8px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#94A3B8;">Sent by ${tenantName} via Pryvo CRM</p>
+        <p style="margin:0;font-size:11px;color:#94A3B8;">Sent by ${tenantName} via Second Police CRM</p>
       </div>
     </div>
   `;

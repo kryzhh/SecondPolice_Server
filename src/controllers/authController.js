@@ -138,38 +138,39 @@ const resendOTP = async (req, res, next) => {
 
 const getMe = async (req, res, next) => {
   try {
-    // req.user is guaranteed to be hydrated by the authenticate middleware
-    // but it might not have the workspaceId if it was just added to the schema
-    let user = req.user;
+    let user = req.user;   // has workspaceId now (fixed in auth middleware)
 
-    if (!user.workspaceId || !user.companyName) {
-      const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
-      const companyName = tenant.name;
+    // Always attach companyName for the client
+    const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
+    const companyName = tenant.name;
+
+    // If workspaceId is missing (first-ever login edge case), generate and persist it
+    if (!user.workspaceId) {
       let roleName = user.role;
       if (user.customRoleId) {
         const customRole = await prisma.customRole.findUnique({ where: { id: user.customRoleId } });
         if (customRole) roleName = customRole.name;
       }
 
-      let dataToUpdate = {};
-      if (!user.workspaceId) {
-        dataToUpdate.workspaceId = await generateWorkspaceId(companyName, roleName);
-      }
-      
-      if (Object.keys(dataToUpdate).length > 0) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: dataToUpdate,
-          include: { customRole: { select: { id: true, name: true } } }
-        });
-      }
-      user.companyName = companyName;
+      const newWorkspaceId = await generateWorkspaceId(companyName, roleName);
+      const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: { workspaceId: newWorkspaceId },
+        include: { customRole: { select: { id: true, name: true, permissions: true } } },
+      });
+
+      // Merge back: keep the flat permissions from req.user in case the DB result
+      // has a customRole row without it, then overlay with the fresh DB value.
+      user = {
+        ...user,
+        workspaceId: updated.workspaceId,
+        permissions: updated.customRole?.permissions ?? user.permissions ?? {},
+      };
     }
 
-    res.status(200).json({
-      status: 'success',
-      data: { user }
-    });
+    user.companyName = companyName;
+
+    res.status(200).json({ status: 'success', data: { user } });
   } catch (err) {
     next(err);
   }

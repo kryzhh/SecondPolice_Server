@@ -115,12 +115,22 @@ exports.createLead = async (req, res, next) => {
     const {
       firstName, lastName, email, phone, company, jobTitle,
       source, status, priority, estimatedValue, currency, notes,
+      assignedToId: explicitAssigneeId,
     } = req.body;
 
     if (!firstName) return next(new AppError('First name is required', 400));
 
-    // Auto-assign to next sales person via round robin
-    const assignee = await assignNextSalesPerson(req.user.tenantId);
+    // Admin can manually assign; otherwise round-robin
+    let assignee = null;
+    if (explicitAssigneeId) {
+      const user = await prisma.user.findFirst({
+        where: { id: explicitAssigneeId, tenantId: req.user.tenantId },
+        select: { id: true, name: true },
+      });
+      assignee = user;
+    } else {
+      assignee = await assignNextSalesPerson(req.user.tenantId);
+    }
 
     const lead = await prisma.lead.create({
       data: {
