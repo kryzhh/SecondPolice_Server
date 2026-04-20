@@ -7,7 +7,8 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/', settingsController.getSettings);
-router.patch('/currency', settingsController.updateDisplayCurrency);
+router.patch('/currency',  settingsController.updateDisplayCurrency);
 router.patch('/workspace', restrictTo('ADMIN'), settingsController.updateWorkspace);
+router.patch('/tax',       restrictTo('ADMIN'), settingsController.updateTaxRate);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/appError');
+const { createInvoiceFromDeal } = require('../services/invoiceService');
 
 const VALID_STAGES = ['LEAD', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST'];
 
@@ -63,16 +64,32 @@ const updateDeal = async (req, res, next) => {
     const deal = await prisma.deal.update({
       where: { id },
       data: {
-        ...(title && { title }),
+        ...(title      && { title }),
         ...(value !== undefined && { value: parseFloat(value) }),
-        ...(stage && { stage }),
+        ...(stage      && { stage }),
         ...(assignedTo !== undefined && { assignedTo }),
-        ...(currency && { currency }),
+        ...(currency   && { currency }),
       },
       include: { user: { select: { id: true, name: true } } },
     });
 
     res.status(200).json({ status: 'success', data: { deal } });
+
+    // Auto-create DRAFT invoice when deal is moved to WON for the first time
+    if (stage === 'WON' && existing.stage !== 'WON') {
+      try {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: req.user.tenantId },
+          select: { id: true, name: true, taxRate: true, displayCurrency: true },
+        });
+        await createInvoiceFromDeal(
+          { ...deal, leadId: existing.leadId },
+          tenant
+        );
+      } catch (invoiceErr) {
+        console.error('[Invoice] Failed to auto-create invoice for deal WON:', invoiceErr.message);
+      }
+    }
   } catch (err) {
     next(err);
   }

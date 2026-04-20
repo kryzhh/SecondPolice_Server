@@ -6,7 +6,7 @@ exports.getSettings = async (req, res, next) => {
   try {
     const tenant = await prisma.tenant.findUnique({
       where: { id: req.user.tenantId },
-      select: { id: true, name: true, displayCurrency: true },
+      select: { id: true, name: true, displayCurrency: true, taxRate: true },
     });
     if (!tenant) return next(new AppError('Workspace not found.', 404));
     res.status(200).json({ status: 'success', data: { settings: tenant } });
@@ -45,7 +45,26 @@ exports.updateWorkspace = async (req, res, next) => {
     const tenant = await prisma.tenant.update({
       where: { id: req.user.tenantId },
       data: { name: name.trim() },
-      select: { id: true, name: true, displayCurrency: true },
+      select: { id: true, name: true, displayCurrency: true, taxRate: true },
+    });
+
+    res.status(200).json({ status: 'success', data: { settings: tenant } });
+  } catch (err) { next(err); }
+};
+
+/** PATCH /api/settings/tax */
+exports.updateTaxRate = async (req, res, next) => {
+  try {
+    const { taxRate } = req.body;
+    const rate = parseFloat(taxRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      return next(new AppError('Tax rate must be a number between 0 and 100.', 400));
+    }
+
+    const tenant = await prisma.tenant.update({
+      where: { id: req.user.tenantId },
+      data: { taxRate: rate },
+      select: { id: true, name: true, displayCurrency: true, taxRate: true },
     });
 
     res.status(200).json({ status: 'success', data: { settings: tenant } });
