@@ -43,7 +43,8 @@ const authenticate = async (req, res, next) => {
       workspaceId: currentUser.workspaceId,
       customRoleId: currentUser.customRoleId,
       permissions: currentUser.customRole ? currentUser.customRole.permissions : {},
-      isEmailVerified: currentUser.isEmailVerified
+      isEmailVerified: currentUser.isEmailVerified,
+      createdAt: currentUser.createdAt
     };
 
     next();

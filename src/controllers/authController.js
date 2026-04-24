@@ -51,7 +51,8 @@ const login = async (req, res, next) => {
           workspaceId: user.workspaceId,
           companyName: user.companyName,
           tenantId: user.tenantId,
-          isEmailVerified: user.isEmailVerified
+          isEmailVerified: user.isEmailVerified,
+          createdAt: user.createdAt
         }
       }
     });
@@ -86,6 +87,7 @@ const verifyOTP = async (req, res, next) => {
             companyName: result.user.companyName,
             tenantId: result.user.tenantId,
             isEmailVerified: true,
+            createdAt: result.user.createdAt
           },
         },
       });
