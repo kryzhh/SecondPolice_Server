@@ -393,3 +393,23 @@ model PushSubscription {
 
   @@index([userId])
 }
+
+// Stores emails that should be delivered at a future scheduled time.
+// Picked up by POST /api/jobs/run-scheduled-emails every minute (via cron-job.org).
+model ScheduledEmail {
+  id          String    @id @default(cuid())
+  tenantId    String
+  createdById String                        // user who scheduled it
+  to          String                        // recipient email address
+  toName      String    @default("")
+  subject     String
+  htmlBody    String    @db.Text
+  scheduledAt DateTime                      // when to deliver
+  status      String    @default("PENDING") // PENDING | SENT | FAILED | CANCELLED
+  sentAt      DateTime?
+  errorMsg    String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([status, scheduledAt])
+}

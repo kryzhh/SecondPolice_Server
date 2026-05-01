@@ -18,6 +18,8 @@ const invoiceRoutes       = require('./routes/invoiceRoutes');
 const prospectRoutes      = require('./routes/prospectRoutes');
 const productRoutes       = require('./routes/productRoutes');
 const pushRoutes          = require('./routes/pushRoutes');
+const scheduledEmailRoutes = require('./routes/scheduledEmailRoutes');
+const jobRoutes            = require('./routes/jobRoutes');
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./middlewares/errorController');
 
@@ -38,7 +40,7 @@ app.use(cors({
   origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-cron-secret']
 }));
 app.use(express.json());
 app.use(morgan('dev'));
@@ -58,7 +60,9 @@ app.use('/api/notifications',  notificationRoutes);
 app.use('/api/invoices',        invoiceRoutes);
 app.use('/api/prospects',       prospectRoutes);
 app.use('/api/products',        productRoutes);
-app.use('/api/push',            pushRoutes);
+app.use('/api/push',              pushRoutes);
+app.use('/api/scheduled-emails',  scheduledEmailRoutes);
+app.use('/api/jobs',              jobRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
