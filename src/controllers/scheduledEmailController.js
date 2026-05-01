@@ -69,4 +69,56 @@ const cancelScheduledEmail = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { createScheduledEmail, getScheduledEmails, cancelScheduledEmail };
+/**
+ * PATCH /api/scheduled-emails/:id
+ * Edit a PENDING scheduled email's fields.
+ */
+const updateScheduledEmail = async (req, res, next) => {
+  try {
+    const existing = await prisma.scheduledEmail.findFirst({
+      where: { id: req.params.id, tenantId: req.user.tenantId },
+    });
+    if (!existing) return next(new AppError('Scheduled email not found.', 404));
+    if (existing.status !== 'PENDING')
+      return next(new AppError(`Cannot edit a ${existing.status} email.`, 400));
+
+    const { to, toName, subject, htmlBody, scheduledAt } = req.body;
+
+    if (scheduledAt) {
+      const d = new Date(scheduledAt);
+      if (isNaN(d.getTime()) || d <= new Date())
+        return next(new AppError('scheduledAt must be a valid future date/time.', 400));
+    }
+
+    const updated = await prisma.scheduledEmail.update({
+      where: { id: existing.id },
+      data: {
+        ...(to          && { to }),
+        ...(toName      && { toName }),
+        ...(subject     && { subject }),
+        ...(htmlBody    && { htmlBody }),
+        ...(scheduledAt && { scheduledAt: new Date(scheduledAt) }),
+      },
+    });
+
+    res.json({ status: 'success', data: { email: updated } });
+  } catch (err) { next(err); }
+};
+
+/**
+ * DELETE /api/scheduled-emails/:id/hard
+ * Permanently deletes a scheduled email (any status).
+ */
+const hardDeleteScheduledEmail = async (req, res, next) => {
+  try {
+    const existing = await prisma.scheduledEmail.findFirst({
+      where: { id: req.params.id, tenantId: req.user.tenantId },
+    });
+    if (!existing) return next(new AppError('Scheduled email not found.', 404));
+
+    await prisma.scheduledEmail.delete({ where: { id: existing.id } });
+    res.status(204).send();
+  } catch (err) { next(err); }
+};
+
+module.exports = { createScheduledEmail, getScheduledEmails, cancelScheduledEmail, updateScheduledEmail, hardDeleteScheduledEmail };
