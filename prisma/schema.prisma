@@ -64,6 +64,7 @@ model User {
   createdLeads  Lead[]        @relation("LeadCreator")
   createdProspects ProspectMeta[] @relation("ProspectCreator")
   pushSubscriptions PushSubscription[]
+  toolUser      ToolUser?
 
   @@index([tenantId])
 }
@@ -394,6 +395,79 @@ model PushSubscription {
   @@index([userId])
 }
 
+// ============================================================================
+// MICRO-PRODUCT / STANDALONE TOOLS LAYER
+// ============================================================================
+
+model ToolUser {
+  id           String   @id @default(uuid())
+  sessionId    String?  @unique // For anonymous usage tracking
+  email        String?  @unique // Nullable if they haven't logged in yet
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  usages       ToolUsage[]
+  purchases    ToolPurchase[]
+  invoices     StandaloneInvoice[]
+
+  // Optional link to CRM User if they convert later
+  crmUserId    String?  @unique
+  crmUser      User?    @relation(fields: [crmUserId], references: [id])
+}
+
+model ToolUsage {
+  id         String   @id @default(uuid())
+  toolUserId String
+  toolUser   ToolUser @relation(fields: [toolUserId], references: [id], onDelete: Cascade)
+  tool       String   // e.g. "INVOICE"
+  usageCount Int      @default(0)
+  period     String?  // e.g. "LIFETIME", "WEEKLY", "MONTHLY"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([toolUserId])
+}
+
+model ToolPurchase {
+  id         String   @id @default(uuid())
+  toolUserId String
+  toolUser   ToolUser @relation(fields: [toolUserId], references: [id], onDelete: Cascade)
+  tool       String   // e.g. "INVOICE"
+  type       String   // e.g. "WEEKLY_PASS", "PER_INVOICE"
+  currency   String   @default("INR")
+  amount     Float
+  status     String   @default("COMPLETED")
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([toolUserId])
+}
+
+model StandaloneInvoice {
+  id            String   @id @default(uuid())
+  toolUserId    String
+  toolUser      ToolUser @relation(fields: [toolUserId], references: [id], onDelete: Cascade)
+  
+  invoiceNo     String
+  clientName    String
+  clientEmail   String?
+  clientAddress String?
+  
+  amount        Float
+  currency      String   @default("INR")
+  taxRate       Float    @default(0)
+  taxAmount     Float    @default(0)
+  totalAmount   Float
+  dueDate       DateTime?
+  
+  items         Json     // Array of invoice items
+  notes         String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([toolUserId])
 // Stores emails that should be delivered at a future scheduled time.
 // Picked up by POST /api/jobs/run-scheduled-emails every minute (via cron-job.org).
 model ScheduledEmail {
