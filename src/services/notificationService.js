@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { getIO } = require('../lib/socket');
 const webpush = require('../lib/webpush');
+const { sendPushNotification } = require('../utils/firebasePush');
 
 /**
  * Creates a notification record in the DB for a specific user,
@@ -57,6 +58,9 @@ const createNotification = async ({ tenantId, userId, type, title, body, linkUrl
       }
     })
   );
+
+  // ── 3. FCM Push (Mobile/App push via Firebase) ────────────────────────────
+  await sendPushNotification(userId, title, body, { type, linkUrl: linkUrl || '/' });
 
   return notification;
 };

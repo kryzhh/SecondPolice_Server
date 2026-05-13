@@ -23,6 +23,7 @@ const scheduledEmailRoutes = require('./routes/scheduledEmailRoutes');
 const jobRoutes            = require('./routes/jobRoutes');
 const campaignRoutes       = require('./routes/campaignRoutes');
 const systemActivityRoutes = require('./routes/systemActivityRoutes');
+const announcementRoutes   = require('./routes/announcementRoutes');
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./middlewares/errorController');
 
@@ -69,6 +70,7 @@ app.use('/api/scheduled-emails',  scheduledEmailRoutes);
 app.use('/api/jobs',              jobRoutes);
 app.use('/api/campaigns',         campaignRoutes);
 app.use('/api/system-activities', systemActivityRoutes);
+app.use('/api/announcements',     announcementRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

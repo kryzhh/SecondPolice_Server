@@ -178,4 +178,20 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe, verifyOTP, forgotPassword, resetPassword, resendOTP };
+const updateFcmToken = async (req, res, next) => {
+  try {
+    const { fcmToken } = req.body;
+    if (!fcmToken) return next(new AppError('fcmToken is required', 400));
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { fcmToken },
+    });
+
+    res.status(200).json({ status: 'success', message: 'FCM Token updated successfully.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, login, getMe, verifyOTP, forgotPassword, resetPassword, resendOTP, updateFcmToken };

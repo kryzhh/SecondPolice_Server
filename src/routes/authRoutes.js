@@ -22,5 +22,6 @@ router.post('/resend-otp', authLimiter, (req, res, next) => {
 }, authController.resendOTP);
 
 router.get('/me', authenticate, authController.getMe);
+router.patch('/fcm-token', authenticate, authController.updateFcmToken);
 
 module.exports = router;

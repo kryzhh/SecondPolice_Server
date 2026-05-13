@@ -41,6 +41,7 @@ model Tenant {
   prospects         ProspectMeta[]
   products          Product[]
   systemActivities  SystemActivity[]
+  announcements     Announcement[]
 }
 
 model User {
@@ -60,6 +61,7 @@ model User {
   activities   Activity[]
   notifications Notification[]
   systemActivities SystemActivity[]
+  announcements Announcement[]
   customRoleId String?
   customRole   CustomRole?    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   assignedLeads Lead[]        @relation("LeadAssignee")
@@ -67,6 +69,7 @@ model User {
   createdProspects ProspectMeta[] @relation("ProspectCreator")
   pushSubscriptions PushSubscription[]
   toolUser      ToolUser?
+  fcmToken      String?
 
   @@index([tenantId])
 }
@@ -175,6 +178,20 @@ model SystemActivity {
   @@index([createdAt])
 }
 
+model Announcement {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  content     String   @db.Text
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([createdAt])
+}
 
 enum Role {
   ADMIN
