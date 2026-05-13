@@ -3,3 +3,5 @@ node_modules
 .env
 
 /generated/prisma
+./config/second-police-cfc4d590a7fb.json
+./config/second-police-firebase-adminsdk-fbsvc-198561f5e7.json
