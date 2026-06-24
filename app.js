@@ -76,6 +76,11 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'success', message: 'API is running' });
 });
 
+// Root endpoint (needed for Render deployment/health check)
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'success', message: 'SecondPolice CRM API is running' });
+});
+
 // 404
 app.use((req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
