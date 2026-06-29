@@ -40,6 +40,7 @@ const superAdminRoutes = require('./routes/superAdminRoutes');
 const subscriptionCronRoutes = require('./routes/subscriptionCronRoutes');
 const customFieldRoutes = require('./routes/customFieldRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const meetingRoutes = require('./routes/meetingRoutes');
 
 const { authenticate } = require('./middlewares/authMiddleware');
 const { subscriptionGate } = require('./middlewares/subscriptionGate');
@@ -57,15 +58,16 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Apply global rate limiter to all /api routes
-app.use('/api', globalLimiter);
-
 app.use(cors({
   origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-cron-secret']
 }));
+
+// Apply global rate limiter to all /api routes
+app.use('/api', globalLimiter);
+
 app.use(morgan('dev'));
 
 // Stripe Webhook MUST be before express.json()
@@ -128,6 +130,7 @@ app.use('/api/pricing/tools', toolPricingRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/cron', subscriptionCronRoutes);
 app.use('/api/custom-fields', customFieldRoutes);
+app.use('/api/meetings', meetingRoutes);
 // Health check
 app.get('/api/health', async (req, res) => {
   try {

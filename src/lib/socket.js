@@ -60,6 +60,20 @@ function initSocket(httpServer) {
     });
 
     // ─────────────────────────────────────────
+    // JOIN MEETING ROOM
+    // ─────────────────────────────────────────
+    socket.on('joinMeetingRoom', (roomName) => {
+      socket.join(`meeting:${roomName}`);
+    });
+
+    // ─────────────────────────────────────────
+    // LEAVE MEETING ROOM
+    // ─────────────────────────────────────────
+    socket.on('leaveMeetingRoom', (roomName) => {
+      socket.leave(`meeting:${roomName}`);
+    });
+
+    // ─────────────────────────────────────────
     // SEND MESSAGE (FULL PRISMA FLOW)
     // ─────────────────────────────────────────
     socket.on('sendMessage', async ({ conversationId, content }) => {

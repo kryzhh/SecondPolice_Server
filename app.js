@@ -36,15 +36,16 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Apply global rate limiter to all /api routes
-app.use('/api', globalLimiter);
-
 app.use(cors({
   origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-cron-secret']
 }));
+
+// Apply global rate limiter to all /api routes
+app.use('/api', globalLimiter);
+
 app.use(express.json({ limit: '12mb' }));
 app.use(express.urlencoded({ extended: true, limit: '12mb' }));
 app.use(morgan('dev'));
