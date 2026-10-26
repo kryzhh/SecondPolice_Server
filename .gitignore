@@ -5,10 +5,11 @@ node_modules
 /generated/prisma
 ./config/second-police-cfc4d590a7fb.json
 ./config/second-police-firebase-adminsdk-fbsvc-198561f5e7.json
-branch_structure.json
-temp_auto_push.bat
-temp_interactive_push.bat
 
 
 localhost.pem
 localhost-key.pem
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
