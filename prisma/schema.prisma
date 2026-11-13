@@ -54,6 +54,7 @@ model Tenant {
   systemActivities       SystemActivity[]
   subscription           TenantSubscription?
   users                  User[]
+  meetings               Meeting[]
 }
 
 model User {
@@ -88,6 +89,9 @@ model User {
   toolUser                ToolUser?
   messages                Message[]
   participants            ConversationParticipant[]
+  hostMeetings            Meeting[]                 @relation("HostMeetings")
+  meetingsJoined          MeetingParticipant[]
+  meetingInvitations      MeetingInvitation[]
   customRole              CustomRole?               @relation(fields: [customRoleId], references: [id])
   tenant                  Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   conversation            Conversation[]
@@ -887,13 +891,12 @@ enum ExpenseStatus {
 enum Role {
   ADMIN
   EMPLOYEE
-  MANAGER
   SUPERADMIN
 }
 
 enum WorkScheduleType {
   FIXED
-  ROTATING
+  ROTATING 
 }
 
 enum ActivityType {
@@ -1054,4 +1057,49 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Meeting {
+  id           String               @id @default(uuid())
+  title        String
+  roomName     String               @unique
+  tenantId     String
+  hostId       String
+  createdAt    DateTime             @default(now())
+  endedAt      DateTime?
+
+  host         User                 @relation("HostMeetings", fields: [hostId], references: [id], onDelete: Cascade)
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  participants MeetingParticipant[]
+  invitations  MeetingInvitation[]
+
+  @@index([tenantId])
+  @@index([hostId])
+}
+
+model MeetingParticipant {
+  id        String   @id @default(uuid())
+  meetingId String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+}
+
+model MeetingInvitation {
+  id        String   @id @default(uuid())
+  meetingId String
+  userId    String
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt DateTime @default(now())
+
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
 }

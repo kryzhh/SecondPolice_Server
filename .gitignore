@@ -1,7 +1,14 @@
 node_modules
 # Keep environment variables out of version control
-.env
 
 /generated/prisma
 ./config/second-police-cfc4d590a7fb.json
 ./config/second-police-firebase-adminsdk-fbsvc-198561f5e7.json
+
+
+localhost.pem
+localhost-key.pem
+
+# Firebase service account credentials
+config/*.json
+config.bat

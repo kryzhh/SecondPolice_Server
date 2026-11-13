@@ -52,17 +52,6 @@ exports.sendMessage = async (req, res) => {
 
       });
 
-    await prisma.conversation.update({
-
-      where: {
-        id: conversationId
-      },
-
-      data: {
-        lastMessageAt: new Date()
-      }
-
-    });
 
     getIO()
       .to(`conversation:${conversationId}`)

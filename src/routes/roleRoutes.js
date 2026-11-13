@@ -3,7 +3,7 @@ const roleController = require('../controllers/roleController');
 const { authenticate } = require('../middlewares/authMiddleware');
 const AppError = require('../utils/appError');
 
-const router = express.Router();
+const  router = express.Router();
 
 // All role routes require authentication
 router.use(authenticate);
